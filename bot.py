@@ -18,17 +18,28 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+
 ADMIN_NAME = os.getenv("ADMIN_NAME", "admin_name").strip()
 BRAND_NAME = os.getenv("BRAND_NAME", "project_brand").strip()
 BOT_NAME = os.getenv("BOT_NAME", "telegram_ai_assistant").strip()
+
+# AI_PROVIDER: gemini | openai
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()
+
+# OpenAI Responses API model
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4").strip()
+
+# Gemini model
+GEMINI_MODELS = [
+    "gemini-3.1-flash-lite-preview",
+    "gemini-1.5-flash-latest",
+]
 
 # =========================
 # CONFIG
 # =========================
 REQUEST_TIMEOUT = 20
-GEMINI_MODELS = [
-    "gemini-1.5-flash-latest",
-]
 
 SUPPORTED_COINS = {
     "btc": "bitcoin",
@@ -97,18 +108,19 @@ def show_banner() -> None:
   ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝   ╚═╝
 {RESET}""")
     print(f"{WHITE}{BOLD}                 {BOT_NAME} • TELEGRAM BOT{RESET}")
-    print(f"{CYAN}{BOLD}                    ◇ AI ◇ CRYPTO ◇ UTILITY ◇{RESET}\n")
+    print(f"{CYAN}{BOLD}               ◇ GEMINI ◇ CHATGPT ◇ CRYPTO ◇{RESET}\n")
 
     print(f"{BLUE}                      ╭──────────────╮")
     print(f"                      │   {CYAN}{BOLD}{BRAND_NAME.upper()[:12]:^12}{BLUE} │")
     print(f"                      ╰──────────────╯{RESET}")
 
     box_line()
-    print(f"{GREEN} Brand      : {WHITE}{BRAND_NAME}{RESET}")
-    print(f"{GREEN} Admin      : {WHITE}{ADMIN_NAME}{RESET}")
-    print(f"{GREEN} Bot Name   : {WHITE}{BOT_NAME}{RESET}")
-    print(f"{GREEN} Runtime    : {WHITE}Python + Termux + Telegram{RESET}")
-    print(f"{GREEN} Started At : {WHITE}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{RESET}")
+    print(f"{GREEN} Brand       : {WHITE}{BRAND_NAME}{RESET}")
+    print(f"{GREEN} Admin       : {WHITE}{ADMIN_NAME}{RESET}")
+    print(f"{GREEN} Bot Name    : {WHITE}{BOT_NAME}{RESET}")
+    print(f"{GREEN} Runtime     : {WHITE}Python + Termux + Telegram{RESET}")
+    print(f"{GREEN} AI Provider : {WHITE}{AI_PROVIDER}{RESET}")
+    print(f"{GREEN} Started At  : {WHITE}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{RESET}")
     box_line()
     slow_print(f"{YELLOW}[*] Initializing bot system...{RESET}")
     slow_print(f"{YELLOW}[*] Loading environment variables...{RESET}")
@@ -119,23 +131,13 @@ def show_banner() -> None:
 def show_ready() -> None:
     print(f"{GREEN}{BOLD}\n[✓] BOT ONLINE{RESET}")
     print(f"{CYAN}Use these commands in Telegram:{RESET}")
-    print(f"{WHITE}/start  /help  /menu  /about  /status  /ai  /crypto  /price{RESET}")
+    print(f"{WHITE}/start /help /menu /about /status /ai /gemini /gpt /crypto /price{RESET}")
     print(f"{MAGENTA}Press CTRL + C to stop the bot.{RESET}\n")
     box_line()
 
 # =========================
 # HELPERS
 # =========================
-def escape_md(text: str) -> str:
-    """
-    Escape MarkdownV2 special characters if needed later.
-    For now we use HTML/plain text more often, but keeping helper is useful.
-    """
-    chars = r"_*[]()~`>#+-=|{}.!"
-    for char in chars:
-        text = text.replace(char, f"\\{char}")
-    return text
-
 def format_currency_usd(value: float) -> str:
     return f"${value:,.4f}"
 
@@ -186,10 +188,7 @@ def ask_gemini(prompt: str) -> Tuple[Optional[str], Optional[str]]:
     if not GEMINI_API_KEY:
         return None, "GEMINI_API_KEY belum diisi di file .env"
 
-    headers = {
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [
             {
@@ -240,22 +239,81 @@ def ask_gemini(prompt: str) -> Tuple[Optional[str], Optional[str]]:
 
         except requests.RequestException as exc:
             logger.error("Gemini request failed on model %s: %s", model, exc)
-            last_error = f"Gagal menggunakan AI pada model {model}: {exc}"
+            last_error = f"Gagal menggunakan Gemini pada model {model}: {exc}"
         except Exception as exc:
             logger.exception("Unexpected Gemini error on model %s: %s", model, exc)
-            last_error = f"Terjadi kesalahan AI: {exc}"
+            last_error = f"Terjadi kesalahan Gemini: {exc}"
 
-    return None, last_error or "Gagal menggunakan AI."
+    return None, last_error or "Gagal menggunakan Gemini."
+
+def ask_openai(prompt: str) -> Tuple[Optional[str], Optional[str]]:
+    if not OPENAI_API_KEY:
+        return None, "OPENAI_API_KEY belum diisi di file .env"
+
+    try:
+        url = "https://api.openai.com/v1/responses"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": OPENAI_MODEL,
+            "input": prompt,
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+
+        text = data.get("output_text", "").strip()
+        if text:
+            return text, None
+
+        output = data.get("output", [])
+        parts = []
+        for item in output:
+            for content in item.get("content", []):
+                if content.get("type") in ("output_text", "text"):
+                    txt = content.get("text", "")
+                    if txt:
+                        parts.append(txt)
+
+        merged = "\n".join(parts).strip()
+        if merged:
+            return merged, None
+
+        return None, "OpenAI tidak memberikan jawaban."
+
+    except requests.RequestException as exc:
+        logger.error("OpenAI request failed: %s", exc)
+        return None, f"Gagal menggunakan ChatGPT/OpenAI: {exc}"
+    except Exception as exc:
+        logger.exception("Unexpected OpenAI error: %s", exc)
+        return None, f"Terjadi kesalahan OpenAI: {exc}"
+
+def ask_ai(prompt: str) -> Tuple[Optional[str], Optional[str]]:
+    provider = AI_PROVIDER.lower()
+
+    if provider == "openai":
+        return ask_openai(prompt)
+
+    if provider == "gemini":
+        return ask_gemini(prompt)
+
+    return None, "AI_PROVIDER harus bernilai 'gemini' atau 'openai'."
 
 def get_status_text() -> str:
     gemini_status = "Configured" if GEMINI_API_KEY else "Not configured"
+    openai_status = "Configured" if OPENAI_API_KEY else "Not configured"
     return (
         f"📡 <b>Bot Status</b>\n\n"
         f"• Brand: <b>{BRAND_NAME}</b>\n"
         f"• Bot Name: <b>{BOT_NAME}</b>\n"
         f"• Admin: <b>{ADMIN_NAME}</b>\n"
         f"• Runtime: <b>Python + Termux + Telegram</b>\n"
+        f"• Default AI: <b>{AI_PROVIDER}</b>\n"
         f"• Gemini API: <b>{gemini_status}</b>\n"
+        f"• OpenAI API: <b>{openai_status}</b>\n"
         f"• Started: <b>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</b>"
     )
 
@@ -281,10 +339,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/status - Status bot\n"
         "/crypto - Daftar coin yang didukung\n"
         "/price btc - Cek harga coin\n"
-        "/ai pertanyaan - Tanya AI\n\n"
+        "/ai pertanyaan - Tanya AI dengan provider default\n"
+        "/gemini pertanyaan - Tanya Gemini langsung\n"
+        "/gpt pertanyaan - Tanya ChatGPT langsung\n\n"
         "<b>Contoh:</b>\n"
         "/price btc\n"
-        "/ai jelaskan apa itu bitcoin secara singkat"
+        "/ai jelaskan apa itu bitcoin\n"
+        "/gemini buat ringkasan singkat\n"
+        "/gpt siapa presiden indonesia"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
@@ -297,7 +359,9 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "4. /status\n"
         "5. /crypto\n"
         "6. /price btc\n"
-        "7. /ai pertanyaan\n\n"
+        "7. /ai pertanyaan\n"
+        "8. /gemini pertanyaan\n"
+        "9. /gpt pertanyaan\n\n"
         "Bot ini sudah siap dipakai untuk command dasar."
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -308,7 +372,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"Brand: <b>{BRAND_NAME}</b>\n"
         f"Admin: <b>{ADMIN_NAME}</b>\n"
         "Platform: <b>Telegram + Python + Termux</b>\n"
-        "Mode: <b>AI + Crypto Utility</b>\n\n"
+        "Mode: <b>Gemini + ChatGPT + Crypto Utility</b>\n\n"
         "Bot ini dibuat agar terlihat lebih profesional, branded, dan siap digunakan."
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -335,9 +399,7 @@ async def crypto_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.message.reply_text(
-            "Gunakan format:\n/price btc"
-        )
+        await update.message.reply_text("Gunakan format:\n/price btc")
         return
 
     symbol = context.args[0].lower().strip()
@@ -360,9 +422,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def ai_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.message.reply_text(
-            "Gunakan format:\n/ai pertanyaan kamu"
-        )
+        await update.message.reply_text("Gunakan format:\n/ai pertanyaan kamu")
         return
 
     prompt = " ".join(context.args).strip()
@@ -370,9 +430,45 @@ async def ai_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("Pertanyaan tidak boleh kosong.")
         return
 
-    await update.message.reply_text("🧠 Sedang memproses pertanyaan AI...")
+    await update.message.reply_text(f"🧠 Sedang memproses pertanyaan AI via {AI_PROVIDER}...")
+
+    answer, err = ask_ai(prompt)
+    if err:
+        await update.message.reply_text(f"❌ {err}")
+        return
+
+    if len(answer) > 4000:
+        answer = answer[:4000] + "\n\n...[dipotong]"
+
+    await update.message.reply_text(answer)
+
+async def gemini_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.message.reply_text("Gunakan format:\n/gemini pertanyaan kamu")
+        return
+
+    prompt = " ".join(context.args).strip()
+    await update.message.reply_text("🧠 Sedang memproses pertanyaan dengan Gemini...")
 
     answer, err = ask_gemini(prompt)
+    if err:
+        await update.message.reply_text(f"❌ {err}")
+        return
+
+    if len(answer) > 4000:
+        answer = answer[:4000] + "\n\n...[dipotong]"
+
+    await update.message.reply_text(answer)
+
+async def gpt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.message.reply_text("Gunakan format:\n/gpt pertanyaan kamu")
+        return
+
+    prompt = " ".join(context.args).strip()
+    await update.message.reply_text("🤖 Sedang memproses pertanyaan dengan ChatGPT...")
+
+    answer, err = ask_openai(prompt)
     if err:
         await update.message.reply_text(f"❌ {err}")
         return
@@ -411,6 +507,8 @@ def main() -> None:
         app.add_handler(CommandHandler("crypto", crypto_command))
         app.add_handler(CommandHandler("price", price_command))
         app.add_handler(CommandHandler("ai", ai_command))
+        app.add_handler(CommandHandler("gemini", gemini_command))
+        app.add_handler(CommandHandler("gpt", gpt_command))
 
         app.add_error_handler(unknown_error)
 

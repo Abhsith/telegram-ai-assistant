@@ -54,7 +54,18 @@ The project is built with the following technologies:
 
 ## Project Structure
 
-telegram-ai-assistant │ ├── bot.py ├── requirements.txt ├── README.md ├── LICENSE ├── .gitignore └── .env.example
+telegram-ai-assistant
+│
+├ .github
+│   └ workflows
+│      └ python-app.yml
+├ bot.py
+├ requirements.txt
+├ README.md
+├ LICENSE
+├ .env.example
+└ .gitignore
+
 Explanation:
 
 - **bot.py** – main Telegram bot script  

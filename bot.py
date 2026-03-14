@@ -28,9 +28,6 @@ BOT_NAME = os.getenv("BOT_NAME", "telegram_ai_assistant").strip()
 REQUEST_TIMEOUT = 20
 GEMINI_MODELS = [
     "gemini-1.5-flash-latest",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro-latest",
-    "gemini-pro",
 ]
 
 SUPPORTED_COINS = {

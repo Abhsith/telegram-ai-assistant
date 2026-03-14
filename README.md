@@ -77,6 +77,34 @@ Explanation:
 
 ---
 
+## 🚀 Installation
+
+Follow these steps to run the bot locally.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Abhsith/telegram-ai-assistant.git
+cd telegram-ai-assistant
+pip install -r requirements.txt
+
+2. Install dependencies
+Bash
+pip install -r requirements.txt
+
+3. Create environment file
+Create a .env file and add your configuration:
+
+BOT_TOKEN=your_bot_token_here
+GEMINI_API_KEY=your_api_key_here
+ADMIN_NAME=admin_name
+BRAND_NAME=project_brand
+BOT_NAME=telegram_ai_assistant
+
+4. Run the bot
+Bash
+python bot.py
+
 ## Status
 
 This project is currently under development and improvements will continue.

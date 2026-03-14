@@ -53,6 +53,7 @@ The project is built with the following technologies:
 ---
 
 ## Project Structure
+
 telegram-ai-assistant │ ├── bot.py ├── requirements.txt ├── README.md ├── LICENSE ├── .gitignore └── .env.example
 Explanation:
 
@@ -62,3 +63,9 @@ Explanation:
 - **LICENSE** – MIT open source license  
 - **.gitignore** – ignored files configuration  
 - **.env.example** – example environment configuration
+
+---
+
+## Status
+
+This project is currently under development and improvements will continue.

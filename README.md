@@ -70,6 +70,3 @@ Explanation:
 
 This project is currently under development and improvements will continue.
 
-## Development
-
-This project is currently under development.

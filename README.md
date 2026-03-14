@@ -105,7 +105,22 @@ BOT_NAME=telegram_ai_assistant
 Bash
 python bot.py
 
-## Status
+📱 Usage
+After running the bot, open Telegram and start your bot.
+Available commands:
+/start
+/help
+/menu
+/crypto
+/price btc
+/ai hello
 
-This project is currently under development and improvements will continue.
+⚠️ Security
+Never upload your .env file to GitHub because it contains your API keys.
+The .env file is already ignored by .gitignore.
+
+```
+## Development
+
+This project is currently under development.
 

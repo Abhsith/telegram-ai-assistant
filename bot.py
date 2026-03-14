@@ -14,6 +14,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Available commands:\n/start\n/help")
 
 def main():
+    if not BOT_TOKEN:
+        print("BOT_TOKEN tidak ditemukan di .env")
+        return
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -21,3 +25,6 @@ def main():
 
     print("Bot is running...")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
